@@ -1,0 +1,57 @@
+﻿@model IEnumerable<PasswordWallet.Models.Passwords>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+    <p>
+        <a asp-action="Create">Create record</a>
+        @Html.ActionLink("Create user", "Create", "Users")
+    </p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Id_User)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.WebAddress)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Login)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Password)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Description)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Id_User)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.WebAddress)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Login)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Password)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Description)
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Edit", new { Id_User = item.Id_User }) |
+                @Html.ActionLink("Details", "Details", new { Id_User = item.Id_User  }) |
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

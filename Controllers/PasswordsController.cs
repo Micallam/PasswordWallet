@@ -10,13 +10,25 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using PasswordWallet.Models;
 
 namespace PasswordWallet.Controllers
 {
     public class PasswordsController : Controller
     {
-        public string connectionString = "Data Source=LAPTOP-GHAEI4O2;Initial Catalog=sqlDb;Integrated Security=True";
+        public string connectionString;
+
+        private readonly IConfiguration _configuration;
+
+        public PasswordsController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+
+            connectionString = _configuration.GetSection("ConnectionStrings").GetSection("DefaultConnection").Value;
+        }
+
 
         // GET: Passwords
         public ActionResult Index()

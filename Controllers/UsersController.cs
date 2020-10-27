@@ -11,6 +11,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using PasswordWallet;
+using System.Configuration;
+using Microsoft.AspNetCore.Identity;
 
 namespace PasswordWallet.Controllers
 {
@@ -72,6 +74,37 @@ namespace PasswordWallet.Controllers
             {
                 return View();
             }
+        }
+
+        // GET: Users/Edit/5
+        public ActionResult Login(int id)
+        {
+            UserLogin userLogin = new UserLogin
+            {
+                Id = id
+            };
+
+            return View(userLogin);
+        }
+
+        [HttpPost]
+        public ActionResult Login(UserLogin userLogin)
+        {
+            IDbConnection db = new SqlConnection(connectionString);
+            Users users = db.Query<Users>("select * from Users where Login ='" + userLogin.Login + "'").SingleOrDefault();
+
+            string userPassHash = users.PasswordHash;
+
+            string loginPassHash = users.IsPasswordKeptAsHash ?
+                GetPasswordHashSHA512(userLogin.Password, users.Salt, pepper) :
+                GetPasswordHMAC(userLogin.Password, users.Salt, pepper);
+
+            if (userPassHash == loginPassHash)
+            {
+                return RedirectToAction(nameof(Index), nameof(Passwords), new { idUser = users.Id});
+            }
+
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: Users/Edit/5

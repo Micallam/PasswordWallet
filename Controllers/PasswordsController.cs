@@ -32,22 +32,22 @@ namespace PasswordWallet.Controllers
 
 
         // GET: Passwords
-        public ActionResult Index()
+        public ActionResult Index(int idUser)
         {
             List<Passwords> passwords = new List<Passwords>();
             Users user = new Users();
 
             IDbConnection db = new SqlConnection(connectionString);
 
-            passwords = db.Query<Passwords>("Select * From Passwords").ToList();
+            passwords = db.Query<Passwords>("Select * From Passwords where IdUser = " + idUser).ToList();
 
-            for (int i = passwords.Count() - 1; i >= 0; i--)
+            /*for (int i = passwords.Count() - 1; i >= 0; i--)
             {
                 user = db.Query<Users>("Select * From Users WHERE Id =" + passwords[i].IdUser).SingleOrDefault();
 
                 passwords[i].Password = EncriptionHelper.DecryptPasswordAES(passwords[i].Password,
                                                                              user.PasswordHash);
-            }
+            }*/
 
             return View(passwords);
         }
@@ -77,7 +77,7 @@ namespace PasswordWallet.Controllers
 
                 rowsAffected = db.Execute(sqlQuery, passwords);
 
-                return RedirectToAction("Index");
+                return RedirectToAction(nameof(Index), new { idUser = passwords.IdUser });
             }
             catch
             {
@@ -128,11 +128,14 @@ namespace PasswordWallet.Controllers
         public ActionResult Details(string password)
         {
             Passwords passwords = new Passwords();
+            Users user = new Users();
 
             IDbConnection db = new SqlConnection(connectionString);
 
             passwords = db.Query<Passwords>("Select * From Passwords WHERE Password = '" + password + "'").SingleOrDefault();
-           // passwords.Password = EncriptionHelper.DecryptPasswordAES();
+            user = db.Query<Users>("Select * From Users WHERE Id = '" + passwords.IdUser + "'").SingleOrDefault();
+            
+            passwords.Password = EncriptionHelper.DecryptPasswordAES(passwords.Password, user.PasswordHash);
 
             return View(passwords);
         }

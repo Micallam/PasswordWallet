@@ -5,12 +5,11 @@ using System.Threading.Tasks;
 
 namespace PasswordWallet.Models
 {
-    public class Users
+    public class UserPasswords
     {
         public int Id { get; set; }
-        public string Salt { get; set; }
+        public string NewPassword { get; set; }
         public string PasswordHash { get; set; }
-        public string Login { get; set; }
         public bool IsPasswordKeptAsHash { get; set; }
     }
 }

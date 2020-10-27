@@ -3,11 +3,11 @@
 @{
     ViewData["Title"] = "Index";
 }
-
-    <p>
-        <a asp-action="Create">Create record</a>
-        @Html.ActionLink("Create user", "Create", "Users")
-    </p>
+<h1>Passwords</h1>
+<p>
+    <a asp-action="Create">Create password</a>
+    @Html.ActionLink("Users", "Index", "Users")
+</p>
 <table class="table">
     <thead>
         <tr>
@@ -48,8 +48,7 @@
                 @Html.DisplayFor(modelItem => item.Description)
             </td>
             <td>
-                @Html.ActionLink("Edit", "Edit", new { idUser = item.IdUser }) |
-                @Html.ActionLink("Details", "Details", new { idUser = item.IdUser  }) |
+                @Html.ActionLink("Details", "Details", new { password = item.Password  })
             </td>
         </tr>
 }

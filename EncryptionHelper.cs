@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace PasswordWallet
 {
-    public class EncriptionHelper
+    public class EncryptionHelper
     {
         public static string EncryptPasswordAES(string _password, string _primaryPasswordHash)
         {
-            EncriptionHelper encriptionHelper = new EncriptionHelper();
+            EncryptionHelper encriptionHelper = new EncryptionHelper();
 
             byte[] md5Key = encriptionHelper.CalculateMD5(_primaryPasswordHash);
 
@@ -84,7 +84,7 @@ namespace PasswordWallet
 
         public static string DecryptPasswordAES(string _passwordHash, string _primaryPasswordHash)
         {
-            EncriptionHelper encriptionHelper = new EncriptionHelper();
+            EncryptionHelper encriptionHelper = new EncryptionHelper();
             byte[] md5Key = encriptionHelper.CalculateMD5(_primaryPasswordHash);
 
             return encriptionHelper.DecryptAES(_passwordHash, md5Key);

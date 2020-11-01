@@ -69,7 +69,7 @@ namespace PasswordWallet.Controllers
                 user = db.Query<Users>("select * from Users where Id =" + userInfo.Id).SingleOrDefault();
 
                 passwords.IdUser = userInfo.Id;
-                passwords.Password = EncriptionHelper.EncryptPasswordAES(passwords.Password, userInfo.LoggedUserPassword);
+                passwords.Password = EncryptionHelper.EncryptPasswordAES(passwords.Password, userInfo.LoggedUserPassword);
 
                 sqlQuery = "Insert Into Passwords (IdUser, Login, Description, WebAddress, Password) Values(@IdUser, @Login, @Description, @WebAddress, @Password)";
 
@@ -133,7 +133,7 @@ namespace PasswordWallet.Controllers
 
             passwords = db.Query<Passwords>("Select * From Passwords WHERE Password = '" + password + "'").SingleOrDefault();
             
-            passwords.Password = EncriptionHelper.DecryptPasswordAES(passwords.Password, userInfo.LoggedUserPassword);
+            passwords.Password = EncryptionHelper.DecryptPasswordAES(passwords.Password, userInfo.LoggedUserPassword);
 
             return View(passwords);
         }

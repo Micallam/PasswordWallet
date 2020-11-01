@@ -190,11 +190,11 @@ namespace PasswordWallet.Controllers
             for (int i = passwords.Count() - 1; i >= 0; i--)
             {
                 String encryptedPassword = passwords[i].Password;
-                String decryptedPassword = EncriptionHelper.DecryptPasswordAES(encryptedPassword, _oldPassword);
+                String decryptedPassword = EncryptionHelper.DecryptPasswordAES(encryptedPassword, _oldPassword);
 
                 affectedRows += db.Execute(
                     "update Passwords " +
-                    "set Password = '" + EncriptionHelper.EncryptPasswordAES(decryptedPassword, _newPassword)
+                    "set Password = '" + EncryptionHelper.EncryptPasswordAES(decryptedPassword, _newPassword)
                     + "' where IdUser = " + _user.Id
                     + " and Password = '" + encryptedPassword + "'");
             }

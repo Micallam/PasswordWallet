@@ -8,6 +8,7 @@
 
 <p>
     <a asp-action="Create">Create New</a>
+    <a asp-action="Login">Login</a>
 </p>
 <table class="table">
     <thead>
@@ -53,9 +54,6 @@
             </td>
             <td>
                 @Html.ActionLink("Edit", "Edit", new { id = item.Id }) 
-            </td>
-            <td>
-                @Html.ActionLink("Passwords", "Login", new { id = item.Id })
             </td>
         </tr>
 }

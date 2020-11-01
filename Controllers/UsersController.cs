@@ -13,6 +13,7 @@ using System.Text;
 using PasswordWallet;
 using System.Configuration;
 using Microsoft.AspNetCore.Identity;
+using Newtonsoft.Json;
 
 namespace PasswordWallet.Controllers
 {
@@ -77,12 +78,9 @@ namespace PasswordWallet.Controllers
         }
 
         // GET: Users/Edit/5
-        public ActionResult Login(int id)
+        public ActionResult Login()
         {
-            UserLogin userLogin = new UserLogin
-            {
-                Id = id
-            };
+            UserLogin userLogin = new UserLogin();
 
             return View(userLogin);
         }
@@ -101,7 +99,16 @@ namespace PasswordWallet.Controllers
 
             if (userPassHash == loginPassHash)
             {
-                return RedirectToAction(nameof(Index), nameof(Passwords), new { idUser = users.Id});
+                HttpContext.Session.SetString(
+                    "UserInfo", 
+                    JsonConvert.SerializeObject(
+                        new UserInfo() 
+                        { 
+                            Id = users.Id, 
+                            LoggedUserPassword = userLogin.Password 
+                        }));
+
+                return RedirectToAction(nameof(Index), nameof(Passwords));
             }
 
             return RedirectToAction(nameof(Index));
@@ -130,30 +137,40 @@ namespace PasswordWallet.Controllers
         {
             try
             {
-                Users users = new Users
+                IDbConnection db = new SqlConnection(connectionString);
+                Users users = db.Query<Users>("select * from Users where Id =" + userPasswords.Id).SingleOrDefault();
+
+                Users editedUser = new Users
                 {
                     Salt = getSalt(),
                     Id = userPasswords.Id,
                     IsPasswordKeptAsHash = userPasswords.IsPasswordKeptAsHash
                 };
-                
-                users.PasswordHash = userPasswords.IsPasswordKeptAsHash ?
-                    GetPasswordHashSHA512(userPasswords.NewPassword, users.Salt, pepper) :
-                    GetPasswordHMAC(userPasswords.NewPassword, users.Salt, pepper);
 
-                this.UpdateUserPasswords(users, userPasswords.PasswordHash);
+                string oldPassHash = users.IsPasswordKeptAsHash ?
+                        GetPasswordHashSHA512(userPasswords.OldPassword, users.Salt, pepper) :
+                        GetPasswordHMAC(userPasswords.OldPassword, users.Salt, pepper);
 
-                IDbConnection db = new SqlConnection(connectionString);
+                if (users.PasswordHash == oldPassHash)
+                {
+                    editedUser.PasswordHash = userPasswords.IsPasswordKeptAsHash ?
+                        GetPasswordHashSHA512(userPasswords.NewPassword, editedUser.Salt, pepper) :
+                        GetPasswordHMAC(userPasswords.NewPassword, editedUser.Salt, pepper);
 
-                string sqlQuery = "UPDATE Users set " +
-                        "Salt='" + users.Salt +
-                        "',PasswordHash='" + users.PasswordHash +
-                        "',IsPasswordKeptAsHash='" + users.IsPasswordKeptAsHash +
-                        "' WHERE Id=" + users.Id;
+                    this.UpdateUserPasswords(editedUser, userPasswords.OldPassword, userPasswords.NewPassword);
 
-                int rowsAffected = db.Execute(sqlQuery);
+                    string sqlQuery = "UPDATE Users set " +
+                            "Salt='" + editedUser.Salt +
+                            "',PasswordHash='" + editedUser.PasswordHash +
+                            "',IsPasswordKeptAsHash='" + editedUser.IsPasswordKeptAsHash +
+                            "' WHERE Id=" + editedUser.Id;
 
-                return RedirectToAction(nameof(Index));
+                    int rowsAffected = db.Execute(sqlQuery);
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                return View();
             }
             catch
             {
@@ -161,7 +178,7 @@ namespace PasswordWallet.Controllers
             }
         }
 
-        public int UpdateUserPasswords(Users _user, string _oldPasswordHash)
+        public int UpdateUserPasswords(Users _user, string _oldPassword, string _newPassword)
         {
             List<Passwords> passwords = new List<Passwords>();
             int affectedRows = 0;
@@ -173,11 +190,11 @@ namespace PasswordWallet.Controllers
             for (int i = passwords.Count() - 1; i >= 0; i--)
             {
                 String encryptedPassword = passwords[i].Password;
-                String decryptedPassword = EncriptionHelper.DecryptPasswordAES(encryptedPassword, _oldPasswordHash);
+                String decryptedPassword = EncriptionHelper.DecryptPasswordAES(encryptedPassword, _oldPassword);
 
                 affectedRows += db.Execute(
                     "update Passwords " +
-                    "set Password = '" + EncriptionHelper.EncryptPasswordAES(decryptedPassword, _user.PasswordHash)
+                    "set Password = '" + EncriptionHelper.EncryptPasswordAES(decryptedPassword, _newPassword)
                     + "' where IdUser = " + _user.Id
                     + " and Password = '" + encryptedPassword + "'");
             }

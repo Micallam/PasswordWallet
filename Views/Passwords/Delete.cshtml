@@ -1,7 +1,11 @@
-﻿@model PasswordWallet.Models.Passwords
+﻿@model PasswordWallet.Models.Passwords 
 
 @{
     ViewData["Title"] = "Delete";
+}
+
+@{ 
+    var passwordHash = Model.Password;
 }
 
 <h1>Delete</h1>
@@ -43,6 +47,9 @@
         </dd>
     </dl>
 
-    @Html.ActionLink("Delete", "Delete", new { idUser = Model.IdUser }) |
-    <a asp-action="Index">Back to List</a>
+    <form asp-action="Delete">
+        <input type="hidden" name="PasswordHash" value="@passwordHash" />
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-action="Index">Back to List</a>
+    </form>
 </div>

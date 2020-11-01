@@ -14,12 +14,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using PasswordWallet.Models;
 using PasswordWallet;
+using Newtonsoft.Json;
 
 namespace PasswordWallet.Controllers
 {
     public class PasswordsController : Controller
     {
         public string connectionString;
+        protected UserInfo userInfo;
 
         private readonly IConfiguration _configuration;
 
@@ -32,22 +34,15 @@ namespace PasswordWallet.Controllers
 
 
         // GET: Passwords
-        public ActionResult Index(int idUser)
+        public ActionResult Index()
         {
-            List<Passwords> passwords = new List<Passwords>();
-            Users user = new Users();
+            userInfo = JsonConvert.DeserializeObject<UserInfo>(HttpContext.Session.GetString("UserInfo"));
+
+            List<Passwords> passwords;
 
             IDbConnection db = new SqlConnection(connectionString);
 
-            passwords = db.Query<Passwords>("Select * From Passwords where IdUser = " + idUser).ToList();
-
-            /*for (int i = passwords.Count() - 1; i >= 0; i--)
-            {
-                user = db.Query<Users>("Select * From Users WHERE Id =" + passwords[i].IdUser).SingleOrDefault();
-
-                passwords[i].Password = EncriptionHelper.DecryptPasswordAES(passwords[i].Password,
-                                                                             user.PasswordHash);
-            }*/
+            passwords = db.Query<Passwords>("Select * From Passwords where IdUser = " + userInfo.Id).ToList();
 
             return View(passwords);
         }
@@ -64,14 +59,17 @@ namespace PasswordWallet.Controllers
         {
             try
             {
+                userInfo = JsonConvert.DeserializeObject<UserInfo>(HttpContext.Session.GetString("UserInfo"));
+
                 int rowsAffected;
                 string sqlQuery;
-                Users user = new Users();
+                Users user;
                 IDbConnection db = new SqlConnection(connectionString);
 
-                user = db.Query<Users>("select * from Users where Id =" + passwords.IdUser).SingleOrDefault();
+                user = db.Query<Users>("select * from Users where Id =" + userInfo.Id).SingleOrDefault();
 
-                passwords.Password = EncriptionHelper.EncryptPasswordAES(passwords.Password, user.PasswordHash);
+                passwords.IdUser = userInfo.Id;
+                passwords.Password = EncriptionHelper.EncryptPasswordAES(passwords.Password, userInfo.LoggedUserPassword);
 
                 sqlQuery = "Insert Into Passwords (IdUser, Login, Description, WebAddress, Password) Values(@IdUser, @Login, @Description, @WebAddress, @Password)";
 
@@ -127,27 +125,28 @@ namespace PasswordWallet.Controllers
         // GET: Passwords/Details/5
         public ActionResult Details(string password)
         {
-            Passwords passwords = new Passwords();
-            Users user = new Users();
+            Passwords passwords;
+
+            userInfo = JsonConvert.DeserializeObject<UserInfo>(HttpContext.Session.GetString("UserInfo"));
 
             IDbConnection db = new SqlConnection(connectionString);
 
             passwords = db.Query<Passwords>("Select * From Passwords WHERE Password = '" + password + "'").SingleOrDefault();
-            user = db.Query<Users>("Select * From Users WHERE Id = '" + passwords.IdUser + "'").SingleOrDefault();
             
-            passwords.Password = EncriptionHelper.DecryptPasswordAES(passwords.Password, user.PasswordHash);
+            passwords.Password = EncriptionHelper.DecryptPasswordAES(passwords.Password, userInfo.LoggedUserPassword);
 
             return View(passwords);
         }
 
         // GET: Passwords/Delete/5
-        public ActionResult Delete(int idUser)
+        public ActionResult Delete(string password)
         {
-            Passwords passwords = new Passwords();
+            Passwords passwords;
+            userInfo = JsonConvert.DeserializeObject<UserInfo>(HttpContext.Session.GetString("UserInfo"));
 
             IDbConnection db = new SqlConnection(connectionString);
 
-            passwords = db.Query<Passwords>("Select * From Passwords WHERE idUser =" + idUser, new { idUser }).SingleOrDefault();
+            passwords = db.Query<Passwords>("Select * From Passwords WHERE idUser = " + userInfo.Id + " AND " + " password = '" + password + "'").SingleOrDefault();
 
             return View(passwords);
         }
@@ -155,13 +154,15 @@ namespace PasswordWallet.Controllers
         // POST: Passwords/Delete/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Delete(int idUser, IFormCollection collection)
+        public ActionResult Delete(string id, IFormCollection collection)
         {
             try
             {
+                string passwordHash = collection["PasswordHash"];
                 IDbConnection db = new SqlConnection(connectionString);
 
-                string sqlQuery = "Delete From Passwords WHERE idUser = " + idUser;
+                string sqlQuery = "Delete From Passwords WHERE password = '" + passwordHash + "'";
+                //string sqlQuery = "Delete From Passwords WHERE idUser = " + passwords.IdUser + " AND " + " password = '" + password + "'";
 
                 int rowsAffected = db.Execute(sqlQuery);
 

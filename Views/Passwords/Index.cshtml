@@ -6,7 +6,7 @@
 <h1>Passwords</h1>
 <p>
     <a asp-action="Create">Create password</a>
-    @Html.ActionLink("Users", "Index", "Users")
+    @Html.ActionLink("Logout", "Index", "Users")
 </p>
 <table class="table">
     <thead>
@@ -48,7 +48,10 @@
                 @Html.DisplayFor(modelItem => item.Description)
             </td>
             <td>
-                @Html.ActionLink("Details", "Details", new { password = item.Password  })
+                @Html.ActionLink("Details", "Details", new { password = item.Password }) 
+            </td>
+            <td>
+                @Html.ActionLink("Delete", "Delete", new { password = item.Password })
             </td>
         </tr>
 }

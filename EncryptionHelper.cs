@@ -9,13 +9,13 @@ namespace PasswordWallet
 {
     public class EncryptionHelper
     {
-        public static string EncryptPasswordAES(string _password, string _primaryPasswordHash)
+        public static string EncryptPasswordAES(string password, string encryptionKey)
         {
             EncryptionHelper encriptionHelper = new EncryptionHelper();
 
-            byte[] md5Key = encriptionHelper.CalculateMD5(_primaryPasswordHash);
+            byte[] md5Key = encriptionHelper.CalculateMD5(encryptionKey);
 
-            return encriptionHelper.EncryptAES(_password, md5Key);
+            return encriptionHelper.EncryptAES(password, md5Key);
         }
 
         public byte[] CalculateMD5(string _secretText)
@@ -82,12 +82,12 @@ namespace PasswordWallet
 
 
 
-        public static string DecryptPasswordAES(string _passwordHash, string _primaryPasswordHash)
+        public static string DecryptPasswordAES(string password, string encryptionKey)
         {
             EncryptionHelper encriptionHelper = new EncryptionHelper();
-            byte[] md5Key = encriptionHelper.CalculateMD5(_primaryPasswordHash);
+            byte[] md5Key = encriptionHelper.CalculateMD5(encryptionKey);
 
-            return encriptionHelper.DecryptAES(_passwordHash, md5Key);
+            return encriptionHelper.DecryptAES(password, md5Key);
         }
 
         public string DecryptAES(string _encryptedPassword, byte[] _key)

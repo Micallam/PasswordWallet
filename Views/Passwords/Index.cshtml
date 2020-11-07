@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PasswordWallet.Models.Passwords>
+﻿@model IEnumerable<PasswordWallet.Models.PasswordModel>
 
 @{
     ViewData["Title"] = "Index";
@@ -21,7 +21,7 @@
                 @Html.DisplayNameFor(model => model.Login)
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Password)
+                @Html.DisplayNameFor(model => model.PasswordHash)
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.Description)
@@ -42,16 +42,16 @@
                 @Html.DisplayFor(modelItem => item.Login)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Password)
+                @Html.DisplayFor(modelItem => item.PasswordHash)
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Description)
             </td>
             <td>
-                @Html.ActionLink("Details", "Details", new { password = item.Password }) 
+                @Html.ActionLink("Details", "Details", new { passwordHash = item.PasswordHash }) 
             </td>
             <td>
-                @Html.ActionLink("Delete", "Delete", new { password = item.Password })
+                @Html.ActionLink("Delete", "Delete", new { passwordHash = item.PasswordHash })
             </td>
         </tr>
 }

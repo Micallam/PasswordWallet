@@ -21,27 +21,29 @@ namespace PasswordWallet.Controllers
     {
         private static readonly Random random = new Random();
         private const string  pepper = "Pepper";
-        public string connectionString;
 
+        private readonly DbContext dbContext;
         private readonly IConfiguration _configuration;
 
         public UsersController(IConfiguration configuration)
         {
-            _configuration = configuration;
+            if (configuration is IConfiguration)
+            {
+                _configuration = configuration;
 
-            connectionString = _configuration.GetSection("ConnectionStrings").GetSection("DefaultConnection").Value;
+                dbContext = new DbContext(configuration);
+            }
         }
 
         // GET: Users
         public ActionResult Index()
         {
-            List<Users> users;
+            return View(GetUserList(dbContext));
+        }
 
-            IDbConnection db = new SqlConnection(connectionString);
-
-            users = db.Query<Users>("Select * From Users").ToList();
-
-            return View(users);
+        public List<UserModel> GetUserList(IDbContex dbContex)
+        {
+            return dbContex.GetUsersList();
         }
 
         // GET: Users/Create
@@ -53,21 +55,16 @@ namespace PasswordWallet.Controllers
         // POST: Users/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(Users users)
+        public ActionResult Create(UserModel user)
         {
             try
             {
-                IDbConnection db = new SqlConnection(connectionString);
+                user.Salt = GetSalt();
+                user.PasswordHash = user.IsPasswordKeptAsHash ?
+                    GetPasswordHashSHA512(user.PasswordHash, user.Salt, pepper) :
+                    GetPasswordHMAC(user.PasswordHash, user.Salt, pepper);
 
-                users.Salt          = getSalt();
-
-                users.PasswordHash = users.IsPasswordKeptAsHash ?
-                    GetPasswordHashSHA512(users.PasswordHash, users.Salt, pepper) :
-                    GetPasswordHMAC(users.PasswordHash, users.Salt, pepper);
-
-                string sqlQuery = "Insert Into Users (Salt, PasswordHash, Login, IsPasswordKeptAsHash) Values(@Salt, @PasswordHash, @Login, @IsPasswordKeptAsHash)";
-
-                int rowsAffected = db.Execute(sqlQuery, users);
+                dbContext.CreateUser(user);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -88,14 +85,12 @@ namespace PasswordWallet.Controllers
         [HttpPost]
         public ActionResult Login(UserLogin userLogin)
         {
-            IDbConnection db = new SqlConnection(connectionString);
-            Users users = db.Query<Users>("select * from Users where Login ='" + userLogin.Login + "'").SingleOrDefault();
+            UserModel user = dbContext.GetUserByLogin(userLogin.Login);
 
-            string userPassHash = users.PasswordHash;
-
-            string loginPassHash = users.IsPasswordKeptAsHash ?
-                GetPasswordHashSHA512(userLogin.Password, users.Salt, pepper) :
-                GetPasswordHMAC(userLogin.Password, users.Salt, pepper);
+            string userPassHash = user.PasswordHash;
+            string loginPassHash = user.IsPasswordKeptAsHash ?
+                GetPasswordHashSHA512(userLogin.Password, user.Salt, pepper) :
+                GetPasswordHMAC(userLogin.Password, user.Salt, pepper);
 
             if (userPassHash == loginPassHash)
             {
@@ -104,11 +99,11 @@ namespace PasswordWallet.Controllers
                     JsonConvert.SerializeObject(
                         new UserInfo() 
                         { 
-                            Id = users.Id, 
+                            Id = user.Id, 
                             LoggedUserPassword = userLogin.Password 
                         }));
 
-                return RedirectToAction(nameof(Index), nameof(Passwords));
+                return RedirectToAction(nameof(Index), "Passwords");
             }
 
             return RedirectToAction(nameof(Index));
@@ -117,14 +112,12 @@ namespace PasswordWallet.Controllers
         // GET: Users/Edit/5
         public ActionResult Edit(int id)
         {
-            IDbConnection db = new SqlConnection(connectionString);
-
-            Users users = db.Query<Users>("select * from Users where Id =" + id, new { id }).SingleOrDefault();
+            UserModel user = dbContext.GetUserById(id);
             UserPasswords userPasswords = new UserPasswords
             {
-                Id = users.Id,
-                PasswordHash = users.PasswordHash,
-                IsPasswordKeptAsHash = users.IsPasswordKeptAsHash
+                Id = user.Id,
+                PasswordHash = user.PasswordHash,
+                IsPasswordKeptAsHash = user.IsPasswordKeptAsHash
             };
 
             return View(userPasswords);
@@ -137,12 +130,11 @@ namespace PasswordWallet.Controllers
         {
             try
             {
-                IDbConnection db = new SqlConnection(connectionString);
-                Users users = db.Query<Users>("select * from Users where Id =" + userPasswords.Id).SingleOrDefault();
+                UserModel users = dbContext.GetUserById(userPasswords.Id);
 
-                Users editedUser = new Users
+                UserModel editedUser = new UserModel
                 {
-                    Salt = getSalt(),
+                    Salt = GetSalt(),
                     Id = userPasswords.Id,
                     IsPasswordKeptAsHash = userPasswords.IsPasswordKeptAsHash
                 };
@@ -159,13 +151,7 @@ namespace PasswordWallet.Controllers
 
                     this.UpdateUserPasswords(editedUser, userPasswords.OldPassword, userPasswords.NewPassword);
 
-                    string sqlQuery = "UPDATE Users set " +
-                            "Salt='" + editedUser.Salt +
-                            "',PasswordHash='" + editedUser.PasswordHash +
-                            "',IsPasswordKeptAsHash='" + editedUser.IsPasswordKeptAsHash +
-                            "' WHERE Id=" + editedUser.Id;
-
-                    int rowsAffected = db.Execute(sqlQuery);
+                    dbContext.UpdateUser(editedUser);
 
                     return RedirectToAction(nameof(Index));
                 }
@@ -178,25 +164,22 @@ namespace PasswordWallet.Controllers
             }
         }
 
-        public int UpdateUserPasswords(Users _user, string _oldPassword, string _newPassword)
+        public int UpdateUserPasswords(UserModel user, string oldPassword, string newPassword)
         {
-            List<Passwords> passwords = new List<Passwords>();
+            List<PasswordModel> passwords;
             int affectedRows = 0;
 
-            IDbConnection db = new SqlConnection(connectionString);
-
-            passwords = db.Query<Passwords>("Select * From Passwords where IdUser = " + _user.Id).ToList();
+            passwords = dbContext.GetPasswordListByUserId(user.Id);
 
             for (int i = passwords.Count() - 1; i >= 0; i--)
             {
-                String encryptedPassword = passwords[i].Password;
-                String decryptedPassword = EncryptionHelper.DecryptPasswordAES(encryptedPassword, _oldPassword);
+                String encryptedPassword = passwords[i].PasswordHash;
+                String decryptedPassword = EncryptionHelper.DecryptPasswordAES(encryptedPassword, oldPassword);
 
-                affectedRows += db.Execute(
-                    "update Passwords " +
-                    "set Password = '" + EncryptionHelper.EncryptPasswordAES(decryptedPassword, _newPassword)
-                    + "' where IdUser = " + _user.Id
-                    + " and Password = '" + encryptedPassword + "'");
+                affectedRows += dbContext.UpdatePasswordHash(
+                    user.Id, 
+                    encryptedPassword,
+                    EncryptionHelper.EncryptPasswordAES(decryptedPassword, newPassword));
             }
 
             return affectedRows;
@@ -205,11 +188,7 @@ namespace PasswordWallet.Controllers
         // GET: Users/Delete/5
         public ActionResult Delete(int id)
         {
-            IDbConnection db = new SqlConnection(connectionString);
-
-            Users users = db.Query<Users>("select * from Users where Id =" + id, new { id }).SingleOrDefault();
-
-            return View(users);
+            return View(dbContext.GetUserById(id));
         }
 
         // POST: Users/Delete/5
@@ -219,11 +198,7 @@ namespace PasswordWallet.Controllers
         {
             try
             {
-                IDbConnection db = new SqlConnection(connectionString);
-
-                string sqlQuery = "delete from Users where Id = " + id;
-
-                int rowsAffected = db.Execute(sqlQuery, id);
+                dbContext.DeleteUser(id);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -233,7 +208,7 @@ namespace PasswordWallet.Controllers
             }
         }
 
-        public string getSalt()
+        public string GetSalt()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return new string(Enumerable.Repeat(chars, 10)
@@ -245,7 +220,7 @@ namespace PasswordWallet.Controllers
             return CalculateSHA512(_password + _salt + _pepper);
         }
 
-        public string CalculateSHA512(string _secretText)
+        public static string CalculateSHA512(string _secretText)
         {
             string secretText = _secretText ?? "";
             var encoding = new ASCIIEncoding();
@@ -265,7 +240,7 @@ namespace PasswordWallet.Controllers
             return CalculateHMAC(_password, _salt + _pepper);
         }
 
-        public string CalculateHMAC(string _secretText, string _key)
+        public static string CalculateHMAC(string _secretText, string _key)
         {
             string secretText = _secretText ?? "";
             var encoding = new ASCIIEncoding();

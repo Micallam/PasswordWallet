@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace PasswordWallet.Models
 {
-    public class Users
+    public class UserModel
     {
         public int Id { get; set; }
         public string Salt { get; set; }

@@ -20,16 +20,26 @@ namespace PasswordWallet.Controllers
 {
     public class PasswordsController : Controller
     {
-        private readonly DbContext dbContext;
+        private readonly IDbContext dbContext;
         protected UserInfo userInfo;
 
         private readonly IConfiguration _configuration;
 
-        public PasswordsController(IConfiguration configuration)
+        public PasswordsController(IConfiguration configuration = null, IDbContext dbContext = null)
         {
-            _configuration = configuration;
+            if (_configuration is IConfiguration)
+            {
+                _configuration = configuration;
+            }
 
-            dbContext = new DbContext(configuration);
+            if (dbContext != null)
+            {
+                this.dbContext = dbContext;
+            }
+            else if (_configuration != null)
+            { 
+                this.dbContext = new DbContext(configuration);
+            }
         }
 
         // GET: Passwords
@@ -61,7 +71,7 @@ namespace PasswordWallet.Controllers
                 password.IdUser = userInfo.Id;
                 password.PasswordHash = EncryptionHelper.EncryptPasswordAES(password.PasswordHash, userInfo.LoggedUserPassword);
 
-                dbContext.CreatePassword(password);
+                CreatePassword(password);
 
                 return RedirectToAction(nameof(Index), new { idUser = password.IdUser });
             }
@@ -69,6 +79,16 @@ namespace PasswordWallet.Controllers
             {
                 return View();
             }
+        }
+
+        public int CreatePassword(PasswordModel password)
+        {
+            if (password.IdUser == 0 || password.PasswordHash == "")
+            {
+                throw new ArgumentNullException();
+            }
+
+            return dbContext.CreatePassword(password);
         }
 
         // GET: Passwords/Details/5

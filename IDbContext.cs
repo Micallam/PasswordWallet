@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PasswordWallet
 {
-    public interface IDbContex
+    public interface IDbContext
     {
         int CreateUser(UserModel user);
 

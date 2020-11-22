@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace PasswordWallet
 {
-    public class DbContext : IDbContex
+    public class DbContext : IDbContext
     {
         public string connectionString;
 
@@ -31,11 +31,6 @@ namespace PasswordWallet
 
         public int CreateUser(UserModel user)
         {
-            if (GetUserByLogin(user.Login) != null)
-            {
-                throw new DuplicateNameException(user.Login);
-            }
-
             string sqlQuery = "Insert Into Users (Salt, PasswordHash, Login, IsPasswordKeptAsHash) Values(@Salt, @PasswordHash, @Login, @IsPasswordKeptAsHash)";
 
             return db.Execute(sqlQuery, user);

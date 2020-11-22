@@ -22,28 +22,35 @@ namespace PasswordWallet.Controllers
         private static readonly Random random = new Random();
         private const string  pepper = "Pepper";
 
-        private readonly DbContext dbContext;
+        private readonly IDbContext dbContext;
         private readonly IConfiguration _configuration;
 
-        public UsersController(IConfiguration configuration)
+        public UsersController(IConfiguration configuration = null, IDbContext dbContext = null)
         {
             if (configuration is IConfiguration)
             {
                 _configuration = configuration;
+            }
 
-                dbContext = new DbContext(configuration);
+            if (dbContext != null)
+            {
+                this.dbContext = dbContext;
+            }
+            else if (_configuration != null)
+            {
+                this.dbContext = new DbContext(configuration);
             }
         }
 
         // GET: Users
         public ActionResult Index()
         {
-            return View(GetUserList(dbContext));
+            return View(GetUserList());
         }
 
-        public List<UserModel> GetUserList(IDbContex dbContex)
+        public List<UserModel> GetUserList()
         {
-            return dbContex.GetUsersList();
+            return dbContext.GetUsersList();
         }
 
         // GET: Users/Create
@@ -64,7 +71,7 @@ namespace PasswordWallet.Controllers
                     GetPasswordHashSHA512(user.PasswordHash, user.Salt, pepper) :
                     GetPasswordHMAC(user.PasswordHash, user.Salt, pepper);
 
-                dbContext.CreateUser(user);
+                CreateUser(user);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -72,6 +79,16 @@ namespace PasswordWallet.Controllers
             {
                 return View();
             }
+        }
+
+        public int CreateUser(UserModel user)
+        {
+            if (dbContext.GetUserByLogin(user.Login) != null)
+            {
+                throw new DuplicateNameException(user.Login);
+            }
+
+            return dbContext.CreateUser(user);
         }
 
         // GET: Users/Edit/5
@@ -85,21 +102,16 @@ namespace PasswordWallet.Controllers
         [HttpPost]
         public ActionResult Login(UserLogin userLogin)
         {
-            UserModel user = dbContext.GetUserByLogin(userLogin.Login);
+            int loggedUserId = CheckLoginCridentials(userLogin);
 
-            string userPassHash = user.PasswordHash;
-            string loginPassHash = user.IsPasswordKeptAsHash ?
-                GetPasswordHashSHA512(userLogin.Password, user.Salt, pepper) :
-                GetPasswordHMAC(userLogin.Password, user.Salt, pepper);
-
-            if (userPassHash == loginPassHash)
+            if (loggedUserId != 0)
             {
                 HttpContext.Session.SetString(
                     "UserInfo", 
                     JsonConvert.SerializeObject(
                         new UserInfo() 
                         { 
-                            Id = user.Id, 
+                            Id = loggedUserId, 
                             LoggedUserPassword = userLogin.Password 
                         }));
 
@@ -107,6 +119,18 @@ namespace PasswordWallet.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        public int CheckLoginCridentials(UserLogin userLogin)
+        {
+            UserModel user = dbContext.GetUserByLogin(userLogin.Login);
+
+            string userPassHash = user.PasswordHash;
+            string loginPassHash = user.IsPasswordKeptAsHash ?
+                GetPasswordHashSHA512(userLogin.Password, user.Salt, pepper) :
+                GetPasswordHMAC(userLogin.Password, user.Salt, pepper);
+
+            return userPassHash == loginPassHash ? user.Id : 0;
         }
 
         // GET: Users/Edit/5
@@ -215,7 +239,7 @@ namespace PasswordWallet.Controllers
               .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
-        public string GetPasswordHashSHA512(string _password, string _salt, string _pepper = pepper)
+        public static string GetPasswordHashSHA512(string _password, string _salt, string _pepper = pepper)
         {
             return CalculateSHA512(_password + _salt + _pepper);
         }
@@ -235,7 +259,7 @@ namespace PasswordWallet.Controllers
             }
         }
         
-        public string GetPasswordHMAC(string _password, string _salt, string _pepper = pepper)
+        public static string GetPasswordHMAC(string _password, string _salt, string _pepper = pepper)
         {
             return CalculateHMAC(_password, _salt + _pepper);
         }
